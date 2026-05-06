@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>AllerSearch — アレルギー対応レストランを地図で探す</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FAF7F2;--ink:#1A1814;--gold:#C9A84C;--gold-light:#E8D5A3;
+  --muted:#6B6560;--border:#E2DDD6;--blue:#1A6EF5;--green:#2E7D32;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP',sans-serif;background:var(--cream);color:var(--ink);}
+
+/* ── 画面管理 ── */
+.scr{position:absolute;inset:0;z-index:10;background:var(--cream);transition:opacity .3s,transform .3s;}
+.scr.off{opacity:0;pointer-events:none;transform:translateY(8px);z-index:5;}
+
+/* ── スプラッシュ ── */
+#s-splash{background:linear-gradient(160deg,#1A1814,#2C2620);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--cream);}
+.spl-line{width:1px;height:50px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);margin-bottom:22px;animation:au .9s ease .2s both;}
+.spl-logo{font-family:'Cormorant Garamond',serif;font-size:50px;font-weight:300;letter-spacing:.08em;animation:au .9s ease .4s both;}
+.spl-logo em{font-style:italic;color:var(--gold);}
+.spl-sub{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-top:9px;margin-bottom:36px;animation:au .9s ease .5s both;}
+.spl-spin{width:24px;height:24px;border:1.5px solid rgba(201,168,76,.25);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes au{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── 共通ヘッダー（プロフィール・投稿一覧） ── */
+.pg-header{
+  padding:52px 24px 32px;
+  background:linear-gradient(160deg,#1A1814,#2C2620);
+  color:var(--cream);position:relative;overflow:hidden;flex-shrink:0;
+}
+.pg-header::after{content:'';position:absolute;width:300px;height:300px;border-radius:50%;border:1px solid rgba(201,168,76,.12);top:-130px;right:-130px;pointer-events:none;}
+.pg-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;position:relative;z-index:1;}
+.pg-logo{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:300;color:var(--cream);text-decoration:none;letter-spacing:.08em;}
+.pg-logo em{font-style:italic;color:var(--gold);}
+.pg-nav-right{display:flex;align-items:center;gap:8px;}
+.nav-chip{font-size:11px;color:rgba(255,255,255,.5);background:transparent;border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:4px 11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .2s;white-space:nowrap;}
+.nav-chip:hover{border-color:var(--gold);color:var(--gold);}
+.pg-eyebrow{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;position:relative;z-index:1;}
+.pg-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;line-height:1.1;margin-bottom:8px;position:relative;z-index:1;}
+.pg-title em{font-style:italic;color:var(--gold);}
+.pg-desc{font-size:12px;font-weight:300;color:rgba(255,255,255,.55);line-height:1.75;position:relative;z-index:1;}
+
+/* ── プロフィール画面 ── */
+#s-profile{display:flex;flex-direction:column;overflow-y:auto;padding-bottom:48px;}
+.sec{padding:16px 20px 0;}
+.sec-lbl{font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;font-weight:500;}
+.plan-list{display:flex;flex-direction:column;gap:7px;}
+.plan-card{background:white;border:1px solid var(--border);border-radius:3px;padding:13px 14px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:all .18s;}
+.plan-card:hover{border-color:var(--gold-light);}
+.plan-card.editing{border-color:var(--gold);background:#FFF8EC;}
+.pc-icon{font-size:20px;flex-shrink:0;}
+.pc-info{flex:1;}
+.pc-name{font-size:14px;font-weight:700;}
+.pc-sub{font-size:11px;color:var(--muted);margin-top:2px;font-weight:300;}
+.add-btn{width:100%;background:transparent;border:1px dashed var(--border);border-radius:3px;padding:11px 14px;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;font-size:13px;color:var(--muted);font-family:'Noto Sans JP',sans-serif;font-weight:300;margin-top:7px;transition:all .18s;}
+.add-btn:hover{border-color:var(--gold);color:var(--gold);}
+.edit-box{display:none;background:white;border:1px solid var(--gold-light);border-radius:3px;padding:16px;margin-top:9px;}
+.edit-box.show{display:block;}
+.f-lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-weight:500;display:block;}
+.f-inp{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:2px;font-size:14px;font-family:'Noto Sans JP',sans-serif;font-weight:300;background:var(--cream);color:var(--ink);outline:none;transition:border-color .2s;margin-bottom:13px;}
+.f-inp:focus{border-color:var(--gold);}
+.ag-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:13px;}
+.ag-item{background:var(--cream);border:1px solid var(--border);border-radius:2px;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .18s;}
+.ag-item:hover{border-color:var(--gold-light);}
+.ag-item.on{border-color:var(--gold);background:#FFF8EC;}
+.ag-em{font-size:19px;flex-shrink:0;}
+.ag-n{font-size:13px;font-weight:700;}
+.ag-s{font-size:10px;color:var(--muted);}
+.ag-ck{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--border);margin-left:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;transition:all .2s;}
+.ag-item.on .ag-ck{background:var(--gold);border-color:var(--gold);color:white;}
+.ea{display:flex;gap:7px;}
+.b-sv{flex:1;padding:11px;background:var(--ink);color:var(--cream);border:none;border-radius:2px;font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:background .2s;}
+.b-sv:hover{background:var(--gold);}
+.b-dl{padding:11px 13px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:2px;font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .2s;}
+.b-dl:hover{border-color:#C0392B;color:#C0392B;}
+.b-cn{padding:11px 13px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:2px;font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;}
+.disc{background:#FFF8EC;border-left:3px solid var(--gold);padding:10px 13px;border-radius:0 2px 2px 0;font-size:12px;color:#7a6000;line-height:1.8;font-weight:300;}
+.disc a{color:var(--gold);}
+.agree-row{margin:9px 0 0;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:300;}
+.agree-row input{width:15px;height:15px;accent-color:var(--gold);}
+.go-btn{margin:13px 20px 0;width:calc(100% - 40px);padding:14px;border:none;border-radius:20px;background:var(--ink);color:var(--cream);font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;font-family:'Noto Sans JP',sans-serif;opacity:.35;transition:all .3s;}
+.go-btn.ok{opacity:1;box-shadow:0 6px 24px rgba(26,24,20,.2);}
+.go-btn.ok:hover{background:var(--gold);}
+
+/* ── マップ画面 ── */
+#s-map{display:flex;flex-direction:column;}
+#gmap{position:absolute;inset:0;}
+
+/* ── トップバー（Google Mapsライク） ── */
+.topbar{
+  position:absolute;top:0;left:0;right:0;z-index:200;
+  padding:10px 12px 8px;
+  display:flex;flex-direction:column;gap:6px;
+  pointer-events:none;
+}
+.tb-row1{display:flex;gap:8px;align-items:center;pointer-events:all;}
+.search-box{
+  flex:1;display:flex;align-items:center;gap:8px;
+  background:white;border-radius:24px;padding:0 14px 0 16px;
+  box-shadow:0 2px 12px rgba(0,0,0,.18);height:44px;
+}
+.search-box input{flex:1;border:none;outline:none;font-size:14px;font-family:'Noto Sans JP',sans-serif;font-weight:300;background:transparent;color:var(--ink);}
+.search-box input::placeholder{color:#aaa;}
+.search-icon{color:#aaa;font-size:16px;flex-shrink:0;}
+.tb-icon-btn{
+  width:44px;height:44px;border-radius:50%;background:white;
+  border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.15);flex-shrink:0;pointer-events:all;
+  transition:background .2s;
+}
+.tb-icon-btn:hover{background:#f5f5f5;}
+
+/* ジャンルチップ */
+.chips-row{display:flex;gap:6px;overflow-x:auto;padding:0 2px 4px;scrollbar-width:none;pointer-events:all;}
+.chips-row::-webkit-scrollbar{display:none;}
+.chip{
+  flex-shrink:0;padding:6px 14px;border-radius:20px;
+  background:white;border:none;font-size:12px;cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif;color:var(--ink);
+  box-shadow:0 1px 6px rgba(0,0,0,.12);transition:all .15s;white-space:nowrap;
+}
+.chip.on{background:var(--ink);color:white;}
+.chip:hover:not(.on){background:#f0f0f0;}
+
+/* プラン・AIボタン行 */
+.tb-row3{display:flex;align-items:center;gap:8px;pointer-events:all;}
+.plan-chips{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;flex:1;}
+.plan-chips::-webkit-scrollbar{display:none;}
+.pchr{
+  flex-shrink:0;padding:5px 12px;border-radius:20px;
+  background:white;border:none;font-size:11px;font-weight:600;cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif;color:var(--muted);
+  box-shadow:0 1px 5px rgba(0,0,0,.1);transition:all .15s;white-space:nowrap;
+}
+.pchr.on{background:var(--ink);color:white;}
+
+/* AIボタン */
+#ai-btn{
+  flex-shrink:0;padding:8px 16px;border-radius:20px;
+  background:var(--ink);color:white;border:none;
+  font-size:11px;font-weight:600;cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);
+  display:flex;align-items:center;gap:6px;
+  transition:background .2s;white-space:nowrap;
+}
+#ai-btn:hover:not(:disabled){background:var(--gold);}
+#ai-btn:disabled{opacity:.45;cursor:default;}
+#ai-btn .spin-ico{animation:spin .7s linear infinite;display:none;}
+#ai-btn.spinning .spin-ico{display:inline;}
+#ai-btn.spinning .btn-ico{display:none;}
+.ai-cnt{background:rgba(255,255,255,.2);border-radius:10px;padding:1px 6px;font-size:10px;}
+
+/* ステータス pill */
+#status-pill{
+  position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+  z-index:200;background:rgba(26,24,20,.82);color:white;
+  padding:7px 16px;border-radius:20px;font-size:11px;
+  display:none;white-space:nowrap;max-width:90%;text-align:center;
+  backdrop-filter:blur(4px);
+}
+
+/* FAB（フローティングボタン） */
+.fab{
+  position:absolute;z-index:200;width:48px;height:48px;border-radius:50%;
+  background:white;border:none;cursor:pointer;
+  box-shadow:0 3px 12px rgba(0,0,0,.2);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  transition:all .2s;
+}
+.fab:hover{background:#f5f5f5;transform:scale(1.06);}
+#fab-locate{bottom:130px;right:14px;}
+#fab-cache{bottom:190px;right:14px;font-size:16px;}
+
+/* 凡例 */
+.legend{
+  position:absolute;bottom:24px;left:12px;z-index:200;
+  background:rgba(255,255,255,.95);border-radius:12px;
+  padding:9px 13px;font-size:11px;
+  box-shadow:0 2px 8px rgba(0,0,0,.12);
+}
+.li{display:flex;align-items:center;gap:7px;margin-bottom:4px;font-weight:300;color:var(--muted);}
+.li:last-child{margin-bottom:0;}
+.ldot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* ── サイドメニュー ── */
+#s-menu{
+  position:absolute;top:0;left:0;bottom:0;width:284px;
+  background:var(--cream);z-index:600;
+  transform:translateX(-100%);transition:transform .28s ease;
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+}
+#s-menu.open{transform:translateX(0);}
+#menu-bg{position:absolute;inset:0;background:rgba(26,24,20,.48);z-index:599;display:none;}
+#menu-bg.open{display:block;}
+.mh{padding:52px 22px 20px;background:linear-gradient(160deg,#1A1814,#2C2620);color:var(--cream);}
+.mh-logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;margin-bottom:9px;}
+.mh-logo em{font-style:italic;color:var(--gold);}
+.mh-plan{font-size:15px;font-weight:600;margin-bottom:3px;}
+.mh-allergy{font-size:11px;color:rgba(255,255,255,.5);margin-bottom:9px;line-height:1.5;font-weight:300;}
+.mh-stats{font-size:11px;color:var(--gold);border-top:1px solid rgba(255,255,255,.1);padding-top:9px;line-height:1.6;}
+/* メニュー内言語切替 */
+.mh-lang{display:flex;gap:6px;margin-top:10px;}
+.lang-pill{padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .2s;}
+.lang-pill.on{background:var(--gold);border-color:var(--gold);color:white;}
+.mb{flex:1;padding:6px 0;overflow-y:auto;}
+.mi{display:flex;align-items:center;gap:12px;padding:13px 20px;font-size:13px;cursor:pointer;color:var(--ink);text-decoration:none;font-weight:300;border:none;background:none;width:100%;text-align:left;font-family:'Noto Sans JP',sans-serif;transition:background .15s;}
+.mi:hover{background:rgba(201,168,76,.07);color:var(--gold);}
+.mi-i{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+.mi-sep{height:1px;background:var(--border);margin:4px 20px;}
+
+/* ── 吹き出し ── */
+.iw{min-width:268px;max-width:300px;font-family:'Noto Sans JP',sans-serif;padding:4px;}
+.iw-name{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:400;margin-bottom:2px;}
+.iw-meta{font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:300;}
+.iw-badge{display:inline-block;padding:3px 10px;border-radius:2px;font-size:10px;font-weight:600;letter-spacing:.08em;margin-bottom:8px;}
+.b-safe{background:#F0F9F0;color:#2E7D32;border:1px solid #C8E6C9;}
+.b-caution{background:#FFF8EC;color:#7a6000;border:1px solid var(--gold-light);}
+.iw-allergy{background:var(--cream);border:1px solid var(--border);padding:6px 9px;border-radius:2px;font-size:11px;margin-bottom:8px;font-weight:300;color:var(--muted);}
+.ai-box{background:linear-gradient(135deg,#1A1814,#2C2620);border-radius:4px;padding:10px 12px;margin-bottom:8px;}
+.ai-box-lbl{font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--gold);margin-bottom:4px;font-weight:600;}
+.ai-box-txt{font-size:12px;color:rgba(255,255,255,.85);line-height:1.7;font-weight:300;}
+.iw-lnk{display:flex;align-items:center;gap:7px;padding:9px 10px;background:#FFF8EC;border:1px solid var(--gold-light);border-radius:2px;text-decoration:none;color:var(--ink);font-size:12px;font-weight:500;margin-bottom:5px;cursor:pointer;transition:background .18s;}
+.iw-lnk:hover{background:var(--gold-light);}
+.lb{font-size:9px;padding:2px 5px;border-radius:1px;margin-left:auto;letter-spacing:.1em;flex-shrink:0;}
+.lb-pdf{background:#C0392B;color:white;}
+.lb-web{background:var(--ink);color:white;}
+.iw-goog{display:block;width:100%;padding:9px 10px;background:transparent;border:1px solid var(--border);border-radius:2px;font-size:12px;color:var(--muted);text-align:center;text-decoration:none;transition:all .18s;margin-top:4px;}
+.iw-goog:hover{border-color:var(--gold);color:var(--gold);}
+.iw-rev-btn{display:block;width:100%;padding:9px 10px;background:transparent;border:1px solid var(--gold-light);border-radius:2px;font-size:11px;font-weight:600;color:var(--gold);text-align:center;cursor:pointer;font-family:'Noto Sans JP',sans-serif;margin-top:7px;transition:all .18s;}
+.iw-rev-btn:hover{background:#FFF8EC;}
+.iw-revs{margin-top:8px;border-top:1px solid var(--border);padding-top:8px;}
+.iw-revs-ttl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.ri{background:var(--cream);border-radius:2px;padding:7px 9px;margin-bottom:4px;font-size:11px;}
+.ri-au{font-weight:700;margin-bottom:2px;}
+.ri-tx{color:var(--muted);line-height:1.5;font-weight:300;}
+.ri-al{font-size:10px;color:var(--gold);margin-top:2px;}
+.ri-dt{font-size:10px;color:#bbb;margin-top:2px;}
+.gm-style-iw{border-radius:6px!important;box-shadow:0 8px 24px rgba(0,0,0,.18)!important;}
+.gm-style-iw-d{overflow:visible!important;}
+
+/* ── PDFモーダル ── */
+#s-pdf{display:none;position:absolute;inset:0;z-index:700;flex-direction:column;background:rgba(20,18,16,.94);}
+.pdf-hd{display:flex;align-items:center;padding:10px 14px;background:var(--ink);gap:10px;flex-shrink:0;}
+.pdf-ttl{font-size:13px;font-weight:500;color:var(--cream);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pdf-ext{font-size:11px;color:var(--gold);text-decoration:none;border:1px solid var(--gold);padding:3px 9px;border-radius:2px;flex-shrink:0;}
+.pdf-cls{background:none;border:none;color:rgba(255,255,255,.5);font-size:22px;cursor:pointer;flex-shrink:0;padding:0 4px;line-height:1;}
+.pdf-cls:hover{color:white;}
+
+/* ── キャッシュ一覧モーダル ── */
+#s-cache{display:flex;flex-direction:column;overflow-y:auto;padding-bottom:40px;}
+.cache-grid{display:flex;flex-direction:column;gap:8px;padding:16px 18px 0;}
+.cache-card{background:white;border:1px solid var(--border);border-radius:4px;padding:12px 14px;}
+.cc-name{font-size:14px;font-weight:700;margin-bottom:3px;}
+.cc-meta{font-size:11px;color:var(--muted);font-weight:300;margin-bottom:5px;}
+.cc-comment{font-size:12px;color:var(--muted);line-height:1.6;font-weight:300;}
+.cc-badge{display:inline-block;padding:2px 8px;border-radius:1px;font-size:10px;font-weight:600;margin-bottom:5px;}
+.cc-lnk{font-size:11px;color:var(--gold);margin-top:4px;}
+.cache-empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;font-weight:300;}
+
+/* ── 投稿一覧モーダル ── */
+#s-reviews{display:flex;flex-direction:column;overflow-y:auto;padding-bottom:40px;}
+.rev-grid{display:flex;flex-direction:column;gap:10px;padding:16px 18px 0;}
+.rev-card{background:white;border:1px solid var(--border);border-radius:4px;padding:14px;}
+.rvc-shop{font-size:12px;color:var(--gold);font-weight:500;margin-bottom:4px;}
+.rvc-name{font-size:14px;font-weight:700;margin-bottom:4px;}
+.rvc-allergy{font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:300;}
+.rvc-body{font-size:13px;color:var(--ink);line-height:1.7;font-weight:300;}
+.rvc-date{font-size:11px;color:#bbb;margin-top:5px;}
+.rev-empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;font-weight:300;}
+
+/* ── 投稿モーダル ── */
+#s-post{position:absolute;inset:0;z-index:800;background:rgba(26,24,20,.68);display:none;align-items:flex-end;justify-content:center;}
+#s-post.open{display:flex;}
+.post-sheet{background:var(--cream);border-radius:12px 12px 0 0;padding:24px 20px 36px;width:100%;max-width:600px;max-height:85vh;overflow-y:auto;}
+.post-handle{width:36px;height:3px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.post-shop{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:300;margin-bottom:3px;}
+.post-sub{font-size:12px;color:var(--muted);margin-bottom:16px;font-weight:300;}
+.ps-lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;font-weight:500;display:block;margin-top:12px;}
+.ps-inp,.ps-ta{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:2px;font-size:14px;font-family:'Noto Sans JP',sans-serif;font-weight:300;background:white;color:var(--ink);outline:none;transition:border-color .2s;}
+.ps-inp:focus,.ps-ta:focus{border-color:var(--gold);}
+.ps-ta{height:76px;resize:none;}
+.post-ok{width:100%;padding:13px;background:var(--ink);color:white;border:none;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:background .2s;margin-top:14px;}
+.post-ok:hover{background:var(--gold);}
+.post-cancel{width:100%;padding:11px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;margin-top:7px;}
+</style>
+</head>
+<body>
+
+<!-- ── スプラッシュ ── -->
+<div class="scr" id="s-splash">
+  <div class="spl-line"></div>
+  <div class="spl-logo">Aller<em>Search</em></div>
+  <div class="spl-sub">AI Allergy Navigator</div>
+  <div class="spl-spin"></div>
+</div>
+
+<!-- ── プロフィール ── -->
+<div class="scr off" id="s-profile">
+  <div class="pg-header">
+    <div class="pg-nav">
+      <a href="index.html" class="pg-logo">Aller<em>Search</em></a>
+      <div class="pg-nav-right">
+        <button class="nav-chip" id="lang-btn-p" onclick="toggleLang()">EN</button>
+        <a href="index.html" class="nav-chip">← Top</a>
+      </div>
+    </div>
+    <div class="pg-eyebrow">Profile — Plans</div>
+    <h1 class="pg-title" id="p-title">アレルゲンを<br><em>登録する</em></h1>
+    <p class="pg-desc" id="p-desc">家族ごとにプランとして保存。地図画面でいつでも切り替えられます。</p>
+  </div>
+
+  <div class="sec" style="padding-top:18px;">
+    <div class="sec-lbl" id="lbl-plans">登録済みプラン</div>
+    <div class="plan-list" id="plan-list"></div>
+    <button class="add-btn" onclick="startAdd()">＋ <span id="lbl-add">新しいプランを追加</span></button>
+  </div>
+
+  <div class="sec">
+    <div class="edit-box" id="edit-box">
+      <label class="f-lbl" id="edit-lbl">プラン名</label>
+      <input type="text" class="f-inp" id="edit-name" placeholder="例：ママ・たろう">
+      <div class="f-lbl" style="margin-bottom:8px;" id="lbl-allergen">除去するアレルゲン</div>
+      <div class="ag-grid">
+        <div class="ag-item" data-n="卵"><span class="ag-em">🥚</span><div><div class="ag-n">卵</div><div class="ag-s">Egg</div></div><div class="ag-ck">✓</div></div>
+        <div class="ag-item" data-n="乳"><span class="ag-em">🥛</span><div><div class="ag-n">乳</div><div class="ag-s">Milk</div></div><div class="ag-ck">✓</div></div>
+        <div class="ag-item" data-n="小麦"><span class="ag-em">🌾</span><div><div class="ag-n">小麦</div><div class="ag-s">Wheat</div></div><div class="ag-ck">✓</div></div>
+        <div class="ag-item" data-n="そば"><span class="ag-em">🍜</span><div><div class="ag-n">そば</div><div class="ag-s">Buckwheat</div></div><div class="ag-ck">✓</div></div>
+        <div class="ag-item" data-n="落花生"><span class="ag-em">🥜</span><div><div class="ag-n">落花生</div><div class="ag-s">Peanut</div></div><div class="ag-ck">✓</div></div>
+        <div class="ag-item" data-n="えび"><span class="ag-em">🦐</span><div><div class="ag-n">えび</div><div class="ag-s">Shrimp</div></div><div class="ag-ck">✓</div></div>
+        <div class="ag-item" data-n="かに"><span class="ag-em">🦀</span><div><div class="ag-n">かに</div><div class="ag-s">Crab</div></div><div class="ag-ck">✓</div></div>
+        <div class="ag-item" data-n="くるみ"><span class="ag-em">🐿️</span><div><div class="ag-n">くるみ</div><div class="ag-s">Walnut</div></div><div class="ag-ck">✓</div></div>
+      </div>
+      <div class="ea">
+        <button class="b-sv" onclick="savePlan()" id="btn-save">保存</button>
+        <button class="b-dl" id="btn-del" onclick="delPlan()" style="display:none;">削除</button>
+        <button class="b-cn" onclick="cancelEdit()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="disc">⚠️ <span id="disc-txt">情報は参考値です。必ず各店舗にご確認ください。</span><a href="disclaimer.html">免責事項</a></div>
+    <div class="agree-row">
+      <input type="checkbox" id="agree" onchange="checkOk()">
+      <label for="agree" id="lbl-agree">免責事項に同意して利用する</label>
+    </div>
+  </div>
+  <button class="go-btn" id="go-btn" onclick="goMap()" disabled id="lbl-go">地図でお店を探す →</button>
+</div>
+
+<!-- ── マップ画面 ── -->
+<div class="scr off" id="s-map">
+  <div id="gmap"></div>
+  <div id="menu-bg" onclick="closeMenu()"></div>
+
+  <!-- サイドメニュー -->
+  <div id="s-menu">
+    <div class="mh">
+      <div class="mh-logo">Aller<em>Search</em></div>
+      <div class="mh-plan" id="mh-plan">—</div>
+      <div class="mh-allergy" id="mh-allergy">—</div>
+      <div class="mh-stats" id="mh-stats">AI調査 残り3回/日</div>
+      <div class="mh-lang">
+        <button class="lang-pill" id="lp-ja" onclick="setLang('ja')">日本語</button>
+        <button class="lang-pill" id="lp-en" onclick="setLang('en')">English</button>
+      </div>
+    </div>
+    <div class="mb">
+      <button class="mi" onclick="goProfile()"><span class="mi-i">⚙️</span><span id="mi-profile">プロフィール設定</span></button>
+      <button class="mi" onclick="showCache()"><span class="mi-i">💾</span><span id="mi-cache">キャッシュ済み店舗</span></button>
+      <button class="mi" onclick="showReviews()"><span class="mi-i">📝</span><span id="mi-reviews">みんなの投稿</span></button>
+      <div class="mi-sep"></div>
+      <a class="mi" href="index.html"><span class="mi-i">🏠</span><span id="mi-top">トップページ</span></a>
+      <a class="mi" href="disclaimer.html"><span class="mi-i">📋</span><span id="mi-disc">免責事項</span></a>
+      <a class="mi" href="privacy.html"><span class="mi-i">🔒</span><span id="mi-priv">プライバシーポリシー</span></a>
+      <a class="mi" href="contact.html"><span class="mi-i">✉️</span><span id="mi-cont">お問い合わせ</span></a>
+    </div>
+  </div>
+
+  <!-- トップバー -->
+  <div class="topbar">
+    <div class="tb-row1">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input id="pac-input" type="text" placeholder="場所・お店名で検索...">
+      </div>
+      <button class="tb-icon-btn" onclick="openMenu()">☰</button>
+    </div>
+    <div class="chips-row" id="chips-row">
+      <div class="chip on" data-kw="" onclick="switchGenre(this,'')">🍽 全て</div>
+      <div class="chip" data-kw="和食" onclick="switchGenre(this,'和食')">🍱 和食</div>
+      <div class="chip" data-kw="ラーメン" onclick="switchGenre(this,'ラーメン')">🍜 ラーメン</div>
+      <div class="chip" data-kw="寿司" onclick="switchGenre(this,'寿司')">🍣 寿司</div>
+      <div class="chip" data-kw="焼肉" onclick="switchGenre(this,'焼肉')">🥩 焼肉</div>
+      <div class="chip" data-kw="イタリアン" onclick="switchGenre(this,'イタリアン')">🍝 イタリアン</div>
+      <div class="chip" data-kw="カフェ" onclick="switchGenre(this,'カフェ')">☕ カフェ</div>
+      <div class="chip" data-kw="パン" onclick="switchGenre(this,'パン')">🥐 パン</div>
+    </div>
+    <div class="tb-row3">
+      <div class="plan-chips" id="plan-chips"></div>
+      <button id="ai-btn" onclick="runAI()">
+        <span class="btn-ico">🤖</span>
+        <span class="spin-ico">⏳</span>
+        <span id="ai-btn-txt">AI調査</span>
+        <span class="ai-cnt" id="ai-cnt">0店</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- FABs -->
+  <button class="fab" id="fab-locate" onclick="locateMe()" title="現在地">📍</button>
+  <button class="fab" id="fab-cache" onclick="showCache()" title="キャッシュ">💾</button>
+
+  <div id="status-pill"></div>
+
+  <!-- 凡例 -->
+  <div class="legend">
+    <div class="li"><div class="ldot" style="background:#1A6EF5;"></div><span id="leg-safe">対応メニューあり</span></div>
+    <div class="li"><div class="ldot" style="background:#C9A84C;"></div><span id="leg-caution">要確認</span></div>
+    <div class="li"><div class="ldot" style="background:#ddd;border:1px solid #bbb;"></div><span id="leg-unknown">未調査</span></div>
+  </div>
+
+  <!-- PDFプレビュー -->
+  <div id="s-pdf">
+    <div class="pdf-hd">
+      <div class="pdf-ttl" id="pdf-ttl">—</div>
+      <a id="pdf-ext" href="#" target="_blank" class="pdf-ext">別タブで開く ↗</a>
+      <button class="pdf-cls" onclick="closePdf()">✕</button>
+    </div>
+    <iframe id="pdf-fr" src="" style="flex:1;border:none;background:white;"></iframe>
+  </div>
+</div>
+
+<!-- ── キャッシュ一覧 ── -->
+<div class="scr off" id="s-cache">
+  <div class="pg-header">
+    <div class="pg-nav">
+      <a href="#" class="pg-logo" onclick="goBack();return false;">Aller<em>Search</em></a>
+      <div class="pg-nav-right">
+        <button class="nav-chip" onclick="toggleLang()">EN/日</button>
+        <button class="nav-chip" onclick="goBack()">← 戻る</button>
+      </div>
+    </div>
+    <div class="pg-eyebrow">Cache — Surveyed Shops</div>
+    <h1 class="pg-title">キャッシュ済み<br><em>店舗一覧</em></h1>
+    <p class="pg-desc" id="cache-count-txt">調査済み店舗が表示されます</p>
+  </div>
+  <div class="cache-grid" id="cache-grid"></div>
+</div>
+
+<!-- ── 投稿一覧 ── -->
+<div class="scr off" id="s-reviews">
+  <div class="pg-header">
+    <div class="pg-nav">
+      <a href="#" class="pg-logo" onclick="goBack();return false;">Aller<em>Search</em></a>
+      <div class="pg-nav-right">
+        <button class="nav-chip" onclick="toggleLang()">EN/日</button>
+        <button class="nav-chip" onclick="goBack()">← 戻る</button>
+      </div>
+    </div>
+    <div class="pg-eyebrow">Community — Reviews</div>
+    <h1 class="pg-title">みんなの<br><em>体験談</em></h1>
+    <p class="pg-desc">アレルギーをお持ちの方々の実際の体験談</p>
+  </div>
+  <div class="rev-grid" id="rev-grid"></div>
+</div>
+
+<!-- ── 投稿フォーム ── -->
+<div id="s-post">
+  <div class="post-sheet">
+    <div class="post-handle"></div>
+    <div class="post-shop" id="post-shop-name">—</div>
+    <div class="post-sub" id="post-sub">体験談を投稿してみんなの食事選びを助けよう 😊</div>
+    <label class="ps-lbl" id="ps-lbl-name">お名前（任意）</label>
+    <input type="text" class="ps-inp" id="ps-name" placeholder="例：田中">
+    <label class="ps-lbl" id="ps-lbl-body">体験談</label>
+    <textarea class="ps-ta" id="ps-body" placeholder="アレルギー対応はどうでしたか？"></textarea>
+    <button class="post-ok" onclick="submitPost()" id="ps-submit">投稿する</button>
+    <button class="post-cancel" onclick="closePost()">キャンセル</button>
+  </div>
+</div>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC5Ef9HiCIAYaan-DXz2nxL3UMx5E48g3k&libraries=places,geometry&language=ja&callback=initMap" async defer></script>
+<script>
+// =============================================
+// 言語
+// =============================================
+let lang = localStorage.getItem('as_lang')||'ja';
+
+const TX = {
+  ja:{
+    profile_title:'アレルゲンを<br><em>登録する</em>',
+    profile_desc:'家族ごとにプランとして保存。地図画面でいつでも切り替えられます。',
+    lbl_plans:'登録済みプラン', lbl_add:'新しいプランを追加',
+    lbl_allergen:'除去するアレルゲン', edit_lbl:'プラン名',
+    disc_txt:'情報は参考値です。必ず各店舗にご確認ください。',
+    lbl_agree:'免責事項に同意して利用する', lbl_go:'地図でお店を探す →',
+    btn_save:'保存', plan_not_set:'アレルゲン未設定', excl:'除去：',
+    safe_badge:'✅ 対応メニューあり', caution_badge:'⚠️ 要確認',
+    not_surveyed:'「AI調査」ボタンで調査できます',
+    goog_search:'🔍 Googleで検索', ai_comment:'🤖 AI調査コメント',
+    db_src:'DB', cache_src:'💾 キャッシュ', web_src:'🌐 AI調査',
+    no_reviews:'まだ投稿がありません', reviews_ttl:'みんなの体験談',
+    post_review:'📝 体験談を投稿',
+    mi_profile:'プロフィール設定', mi_cache:'キャッシュ済み店舗',
+    mi_reviews:'みんなの投稿', mi_top:'トップページ',
+    mi_disc:'免責事項', mi_priv:'プライバシーポリシー', mi_cont:'お問い合わせ',
+    leg_safe:'対応メニューあり', leg_caution:'要確認', leg_unknown:'未調査',
+    ai_btn_txt:'AI調査', searching:'AI調査中',
+    cache_title:'キャッシュ済み<br><em>店舗一覧</em>',
+    ps_lbl_name:'お名前（任意）', ps_lbl_body:'体験談',
+    ps_submit:'投稿する', ps_sub:'体験談を投稿してみんなの食事選びを助けよう 😊',
+  },
+  en:{
+    profile_title:'Register your<br><em>Allergens</em>',
+    profile_desc:"Save as a plan for each family member. Switch anytime on the map.",
+    lbl_plans:'Saved Plans', lbl_add:'Add New Plan',
+    lbl_allergen:'Allergens to avoid', edit_lbl:'Plan Name',
+    disc_txt:'Info is for reference only. Always confirm with the restaurant.',
+    lbl_agree:'Agree to disclaimer and continue', lbl_go:'Find restaurants on map →',
+    btn_save:'Save', plan_not_set:'No allergens set', excl:'Avoid: ',
+    safe_badge:'✅ Safe menu available', caution_badge:'⚠️ Check required',
+    not_surveyed:'Use "AI Survey" button to check',
+    goog_search:'🔍 Search on Google', ai_comment:'🤖 AI Survey Result',
+    db_src:'DB', cache_src:'💾 Cache', web_src:'🌐 AI',
+    no_reviews:'No reviews yet', reviews_ttl:'Community Reviews',
+    post_review:'📝 Post a Review',
+    mi_profile:'Profile Settings', mi_cache:'Cached Shops',
+    mi_reviews:'Community Reviews', mi_top:'Top Page',
+    mi_disc:'Disclaimer', mi_priv:'Privacy Policy', mi_cont:'Contact Us',
+    leg_safe:'Safe menu available', leg_caution:'Check required', leg_unknown:'Not surveyed',
+    ai_btn_txt:'AI Survey', searching:'Surveying...',
+    cache_title:'Cached<br><em>Shops</em>',
+    ps_lbl_name:'Your name (optional)', ps_lbl_body:'Your experience',
+    ps_submit:'Post', ps_sub:'Share your experience and help others eat safely 😊',
+  }
+};
+function t(k){ return TX[lang]?.[k] || TX.ja?.[k] || k; }
+
+function applyLang(){
+  // プロフィール
+  const pt=document.getElementById('p-title'); if(pt)pt.innerHTML=t('profile_title');
+  const pd=document.getElementById('p-desc'); if(pd)pd.textContent=t('profile_desc');
+  sid('lbl-plans',t('lbl_plans')); sid('lbl-add',t('lbl_add')); sid('lbl-allergen',t('lbl_allergen'));
+  sid('edit-lbl',t('edit_lbl')); sid('disc-txt',t('disc_txt')); sid('lbl-agree',t('lbl_agree'));
+  sid('go-btn',t('lbl_go')); sid('btn-save',t('btn_save'));
+  // マップ
+  sid('ai-btn-txt',t('ai_btn_txt'));
+  sid('mi-profile',t('mi_profile')); sid('mi-cache',t('mi_cache')); sid('mi-reviews',t('mi_reviews'));
+  sid('mi-top',t('mi_top')); sid('mi-disc',t('mi_disc')); sid('mi-priv',t('mi_priv')); sid('mi-cont',t('mi_cont'));
+  sid('leg-safe',t('leg_safe')); sid('leg-caution',t('leg_caution')); sid('leg-unknown',t('leg_unknown'));
+  // 言語ピル
+  const pj=document.getElementById('pac-input'); if(pj)pj.placeholder=lang==='ja'?'場所・お店名で検索...':'Search by place or restaurant...';
+  const lpj=document.getElementById('lp-ja'),lpe=document.getElementById('lp-en');
+  if(lpj)lpj.classList.toggle('on',lang==='ja'); if(lpe)lpe.classList.toggle('on',lang==='en');
+  const lbp=document.getElementById('lang-btn-p'); if(lbp)lbp.textContent=lang==='ja'?'EN':'日本語';
+  // 投稿フォーム
+  sid('ps-lbl-name',t('ps_lbl_name')); sid('ps-lbl-body',t('ps_lbl_body'));
+  sid('ps-submit',t('ps_submit')); sid('ps-sub',t('ps_sub'));
+  renderPlanList();
+}
+function sid(id,v){ const e=document.getElementById(id); if(e)e.textContent=v; }
+function setLang(l){ lang=l; localStorage.setItem('as_lang',l); applyLang(); }
+function toggleLang(){ setLang(lang==='ja'?'en':'ja'); }
+
+// =============================================
+// 画面管理
+// =============================================
+let screenHistory = [];
+function showScr(id, pushHistory=true){
+  if(pushHistory) screenHistory.push(id);
+  document.querySelectorAll('.scr').forEach(s=>s.classList.add('off'));
+  document.getElementById(id).classList.remove('off');
+}
+function goBack(){
+  screenHistory.pop(); // 現在
+  const prev = screenHistory[screenHistory.length-1] || 's-map';
+  document.querySelectorAll('.scr').forEach(s=>s.classList.add('off'));
+  document.getElementById(prev).classList.remove('off');
+}
+
+// =============================================
+// 定数
+// =============================================
+const DAILY_LIMIT = 999; // 実質制限なし（コスト管理はサーバー側で行う）
+const RADIUS = 500;
+const PARALLEL = 10;
+
+// =============================================
+// チェーン店DB
+// =============================================
+const CHAIN = {
+  'マクドナルド':{safe:true,color:'blue',comment:'公式アレルギーガイドあり。全メニューのアレルゲン情報を確認できます。',links:[{title:'公式アレルギーガイド',url:'https://www.mcdonalds.co.jp/quality/allergy_guide/'}]},
+  'モスバーガー':{safe:true,color:'blue',comment:'ライスバーガーなどアレルギー対応メニューあり。',links:[{title:'アレルギー情報',url:'https://www.mos.jp/menu/allergy/'}]},
+  'ケンタッキー':{safe:true,color:'blue',comment:'公式アレルギー表あり。',links:[{title:'アレルギー表',url:'https://www.kfc.co.jp/nutrition/allergy.html'}]},
+  'サイゼリヤ':{safe:true,color:'blue',comment:'全メニューのアレルゲン情報を公開しています。',links:[{title:'アレルギー物質一覧',url:'https://www.saizeriya.co.jp/safety/allergy/'}]},
+  'ガスト':{safe:true,color:'blue',comment:'PDF形式でアレルギー表を確認できます。',links:[{title:'アレルギー情報',url:'https://www.skylark.co.jp/gusto/allergy.html'}]},
+  'バーミヤン':{safe:true,color:'blue',comment:'アレルギー情報ページあり。',links:[{title:'アレルギー情報',url:'https://www.skylark.co.jp/bamiyan/allergy.html'}]},
+  'ジョナサン':{safe:true,color:'blue',comment:'アレルギー情報ページあり。',links:[{title:'アレルギー情報',url:'https://www.skylark.co.jp/jonathan/allergy.html'}]},
+  'デニーズ':{safe:true,color:'blue',comment:'全商品のアレルゲンを掲載しています。',links:[{title:'アレルギー情報',url:'https://www.dennys.jp/food/allergy/'}]},
+  'ロイヤルホスト':{safe:true,color:'blue',comment:'アレルギー情報あり。',links:[{title:'アレルギー情報',url:'https://www.royalhost.jp/safety/allergy/'}]},
+  'スシロー':{safe:true,color:'blue',comment:'公式アレルギー表あり。商品ごとにアレルゲンを確認できます。',links:[{title:'アレルギー表',url:'https://www.akindo-sushiro.co.jp/menu/allergy.html'}]},
+  'くら寿司':{safe:true,color:'blue',comment:'無添加・アレルギー対応に力を入れています。',links:[{title:'アレルギー情報',url:'https://www.kurasushi.co.jp/allergy/'}]},
+  'はま寿司':{safe:true,color:'blue',comment:'アレルギー情報あり。',links:[{title:'アレルギー情報',url:'https://www.hamazushi.com/hamazushi/allergy/'}]},
+  'かっぱ寿司':{safe:true,color:'blue',comment:'アレルギー表あり。',links:[{title:'アレルギー表',url:'https://www.kappasushi.jp/cp/allergy'}]},
+  '吉野家':{safe:true,color:'blue',comment:'アレルギー情報あり。',links:[{title:'アレルギー情報',url:'https://www.yoshinoya.com/service/allergy/'}]},
+  'すき家':{safe:true,color:'blue',comment:'全メニューのアレルゲンを掲載。',links:[{title:'アレルギー情報',url:'https://www.sukiya.jp/menu/allergy/'}]},
+  '松屋':{safe:true,color:'blue',comment:'各メニューのアレルゲン表を確認できます。',links:[{title:'アレルギー表',url:'https://www.matsuyafoods.co.jp/matsuya/menu/allergy/'}]},
+  'なか卯':{safe:true,color:'blue',comment:'アレルギー情報あり。',links:[{title:'アレルギー情報',url:'https://www.nakau.co.jp/jp/allergy'}]},
+  '大戸屋':{safe:true,color:'blue',comment:'定食メニューのアレルゲンを確認できます。',links:[{title:'アレルギー情報',url:'https://www.ootoya.com/menu/allergy/'}]},
+  'やよい軒':{safe:true,color:'blue',comment:'アレルギー情報あり。',links:[{title:'アレルギー情報',url:'https://www.yayoiken.com/allergy/'}]},
+  'スターバックス':{safe:true,color:'blue',comment:'ブラックコーヒーは多くのアレルゲンに対応可能です。',links:[{title:'アレルギー情報',url:'https://www.starbucks.co.jp/beverage/allergy/'}]},
+  'ドトール':{safe:true,color:'blue',comment:'アレルギー情報あり。',links:[{title:'アレルギー情報',url:'https://www.doutor.co.jp/dcs/menu/allergy/'}]},
+  'コメダ':{safe:true,color:'blue',comment:'各メニューのアレルゲンを確認できます。',links:[{title:'アレルギー表',url:'https://www.komeda.co.jp/allergy/'}]},
+  'コメダ珈琲':{safe:true,color:'blue',comment:'各メニューのアレルゲンを確認できます。',links:[{title:'アレルギー表',url:'https://www.komeda.co.jp/allergy/'}]},
+  'タリーズ':{safe:true,color:'blue',comment:'アレルギー情報あり。',links:[{title:'アレルギー情報',url:'https://www.tullys.co.jp/products/allergy/'}]},
+  'サブウェイ':{safe:true,color:'blue',comment:'カスタムでアレルゲン除去可能。',links:[{title:'アレルギー情報',url:'https://www.subway.co.jp/nutrition/allergy/'}]},
+  'ミスタードーナツ':{safe:true,color:'blue',comment:'商品別のアレルゲンを確認できます。',links:[{title:'アレルギー情報',url:'https://www.misterdonut.jp/m_info/allergy/'}]},
+  'リンガーハット':{safe:true,color:'blue',comment:'グルテンフリー対応メニューあり。',links:[{title:'アレルギー情報',url:'https://www.ringerhut.jp/safety/allergy/'}]},
+  '丸亀製麺':{safe:false,color:'yellow',comment:'うどん主体。小麦アレルギーの方は要注意。',links:[{title:'アレルギー表',url:'https://www.marugame-seimen.com/safety/allergy/'}]},
+  'CoCo壱番屋':{safe:true,color:'blue',comment:'トッピングや辛さ調整でカスタマイズ可。',links:[{title:'アレルギー情報',url:'https://www.ichibanya.co.jp/allergy/'}]},
+  '牛角':{safe:true,color:'blue',comment:'焼肉のためシンプルなメニューが多い。',links:[{title:'アレルギー情報',url:'https://www.gyukaku.ne.jp/menu/allergy/'}]},
+  'ジョリーパスタ':{safe:true,color:'blue',comment:'アレルギー情報あり。',links:[{title:'アレルギー情報',url:'https://www.jollypasta.co.jp/safety/'}]},
+};
+function matchChain(name){
+  for(const [k,v] of Object.entries(CHAIN)) if(name.includes(k)) return{...v,source:'db',status:'done',_ts:Date.now()};
+  return null;
+}
+
+// =============================================
+// 口コミ（localStorage + サーバー）
+// =============================================
+function getLocalRevs(pid){ return JSON.parse(localStorage.getItem('as_rev_'+pid)||'[]'); }
+function saveLocalRev(pid,r){ const a=getLocalRevs(pid); a.unshift(r); localStorage.setItem('as_rev_'+pid,JSON.stringify(a.slice(0,20))); }
+async function postReviewServer(pid,pname,reviewer,body){
+  try{ await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({place_id:pid,place_name:pname,reviewer,body,rating:5})}); }catch(e){}
+}
+async function getAllReviews(){
+  // ローカル全店分をまとめて取得
+  const all=[];
+  for(const key of Object.keys(localStorage)){
+    if(key.startsWith('as_rev_')){
+      const rs=JSON.parse(localStorage.getItem(key)||'[]');
+      rs.forEach(r=>all.push(r));
+    }
+  }
+  // サーバーからも取得（可能なら）
+  try{
+    const r=await fetch('/api/reviews?place_id=all');
+    if(r.ok){ const data=await r.json(); data.forEach(d=>all.push({...d,fromServer:true})); }
+  }catch(e){}
+  return all.sort((a,b)=>(b.created_at||0)-(a.created_at||0));
+}
+
+// =============================================
+// プラン管理
+// =============================================
+let plans=[],activePlanId=null,editPlanId=null,editAllergies=[];
+function loadPlans(){ plans=JSON.parse(localStorage.getItem('as_plans_v3')||'[]'); if(!activePlanId&&plans.length>0)activePlanId=plans[0].id; }
+function savePlans(){ localStorage.setItem('as_plans_v3',JSON.stringify(plans)); }
+function getActive(){ return plans.find(p=>p.id===activePlanId)||plans[0]||null; }
+function getActiveAllergies(){ return getActive()?.allergies||[]; }
+function getActiveName(){ return getActive()?.name||t('plan_not_set'); }
+const ICONS=['👤','👶','🧑','👩','👨','🧓','🐶','🌸'];
+
+function renderPlanList(){
+  const el=document.getElementById('plan-list'); if(!el)return;
+  el.innerHTML=plans.map((p,i)=>`
+    <div class="plan-card${editPlanId===p.id?' editing':''}" onclick="startEdit('${p.id}')">
+      <div class="pc-icon">${ICONS[i%ICONS.length]}</div>
+      <div class="pc-info"><div class="pc-name">${p.name}</div><div class="pc-sub">${p.allergies?.length?p.allergies.join('・'):t('plan_not_set')}</div></div>
+      <div style="font-size:14px;color:var(--muted);">✏️</div>
+    </div>`).join('');
+}
+function renderPlanChips(){
+  const el=document.getElementById('plan-chips'); if(!el)return;
+  el.innerHTML=plans.map(p=>`<button class="pchr${p.id===activePlanId?' on':''}" onclick="switchPlan('${p.id}')">${p.name}</button>`).join('');
+}
+function switchPlan(id){
+  activePlanId=id;
+  Object.keys(aiCache).forEach(pid=>{ if(aiCache[pid]?.source!=='db') delete aiCache[pid]; });
+  markers.forEach(({m,p})=>{ m.setIcon(mkIcon(aiCache[p.place_id]?.color||'white')); });
+  renderPlanChips(); updateMenuInfo();
+}
+
+function startAdd(){ editPlanId=null; editAllergies=[]; resetEditForm('新しいプランの名前',false); showEditBox(); }
+function startEdit(id){
+  const p=plans.find(x=>x.id===id); if(!p)return;
+  editPlanId=id; editAllergies=[...(p.allergies||[])];
+  document.getElementById('edit-name').value=p.name;
+  document.getElementById('edit-lbl').textContent=t('edit_lbl');
+  document.getElementById('btn-del').style.display='';
+  document.querySelectorAll('.ag-item').forEach(el=>el.classList.toggle('on',editAllergies.includes(el.dataset.n)));
+  showEditBox(); renderPlanList();
+}
+function resetEditForm(lbl,showDel){
+  document.getElementById('edit-name').value='';
+  document.getElementById('edit-lbl').textContent=lbl;
+  document.getElementById('btn-del').style.display=showDel?'':'none';
+  document.querySelectorAll('.ag-item').forEach(el=>el.classList.remove('on'));
+}
+function showEditBox(){ document.getElementById('edit-box').classList.add('show'); document.getElementById('edit-box').scrollIntoView({behavior:'smooth'}); }
+function savePlan(){
+  const name=document.getElementById('edit-name').value.trim()||'プラン';
+  if(editPlanId===null){ const np={id:Date.now().toString(),name,allergies:[...editAllergies]}; plans.push(np); if(!activePlanId)activePlanId=np.id; }
+  else{ const i=plans.findIndex(p=>p.id===editPlanId); if(i>=0)plans[i]={id:editPlanId,name,allergies:[...editAllergies]}; }
+  savePlans(); cancelEdit(); renderPlanList(); checkOk();
+}
+function delPlan(){
+  if(!editPlanId)return;
+  plans=plans.filter(p=>p.id!==editPlanId);
+  if(activePlanId===editPlanId) activePlanId=plans.length>0?plans[0].id:null;
+  savePlans(); cancelEdit(); renderPlanList(); checkOk();
+}
+function cancelEdit(){ editPlanId=null; editAllergies=[]; document.getElementById('edit-box').classList.remove('show'); document.querySelectorAll('.ag-item').forEach(el=>el.classList.remove('on')); renderPlanList(); }
+document.querySelectorAll('.ag-item').forEach(el=>{
+  el.onclick=()=>{ el.classList.toggle('on'); const n=el.dataset.n; if(el.classList.contains('on'))editAllergies.push(n); else editAllergies=editAllergies.filter(a=>a!==n); };
+});
+function checkOk(){
+  const ok=document.getElementById('agree').checked&&plans.length>0;
+  const b=document.getElementById('go-btn'); b.disabled=!ok; b.classList.toggle('ok',ok);
+}
+function updateMenuInfo(){
+  const p=getActive();
+  sid('mh-plan',p?.name||'—');
+  const al=p?.allergies?.length?t('excl')+p.allergies.join('・'):t('plan_not_set');
+  sid('mh-allergy',al);
+  sid('mh-stats',`AI調査 残り${getRemaining()}回/日`);
+}
+
+// =============================================
+// 回数制限（デバッグ: ?reset でリセット可能）
+// =============================================
+function getQuota(){
+  const today=new Date().toDateString();
+  const s=JSON.parse(localStorage.getItem('as_quota')||'{}');
+  if(s.date!==today){ const f={date:today,used:0}; localStorage.setItem('as_quota',JSON.stringify(f)); return f; }
+  return s;
+}
+function useQuota(){ const d=getQuota(); d.used++; localStorage.setItem('as_quota',JSON.stringify(d)); updateAiBtn(); }
+function getRemaining(){ return Math.max(0,DAILY_LIMIT-getQuota().used); }
+function resetQuota(){ localStorage.removeItem('as_quota'); updateAiBtn(); alert('AI調査回数をリセットしました。'); }
+function updateAiBtn(){
+  const rem=getRemaining();
+  const btn=document.getElementById('ai-btn');
+  if(!btn)return;
+  if(rem>0){ btn.style.background='var(--ink)'; btn.disabled=false; sid('ai-btn-txt',t('ai_btn_txt')); }
+  else{ btn.style.background='#888'; btn.disabled=false; sid('ai-btn-txt','🔍 Google検索'); }
+  sid('mh-stats',`AI調査 残り${rem}回/日`);
+}
+
+// =============================================
+// キャッシュ（localStorage・7日TTL）
+// =============================================
+const CACHE_KEY='as_cache_v3';
+const CACHE_TTL=7*24*60*60*1000;
+function loadLocalCache(){
+  try{ const raw=localStorage.getItem(CACHE_KEY); if(!raw)return{}; const s=JSON.parse(raw); const now=Date.now(); const v={}; Object.entries(s).forEach(([k,d])=>{ if(d._ts&&now-d._ts<CACHE_TTL)v[k]=d; }); return v; }catch(e){return{};}
+}
+function saveLocalCache(){
+  try{ const s={}; Object.entries(aiCache).forEach(([k,v])=>{ if(v.source!=='db')s[k]={...v,_ts:v._ts||Date.now()}; }); localStorage.setItem(CACHE_KEY,JSON.stringify(s)); }catch(e){}
+}
+async function fetchServerCache(ids){
+  try{ const r=await fetch(`/api/cache?ids=${encodeURIComponent(ids.join(','))}`); return r.ok?await r.json():{}; }catch(e){return{};}
+}
+async function saveServerCache(items){
+  try{ await fetch('/api/cache',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(items)}); }catch(e){}
+}
+
+// =============================================
+// 起動
+// =============================================
+let map,service,infowindow;
+let markers=new Map(),aiCache={};
+let curKw='';
+let postTargetPlace=null;
+let mapInited=false;
+
+// 起動時に古いquotaをクリア（AI調査終了バグ防止）
+localStorage.removeItem('as_quota');
+// URLパラメータで手動リセット（デバッグ用）
+if(location.search.includes('reset')){ localStorage.removeItem('as_quota'); localStorage.removeItem('as_cache_v3'); }
+
+window.addEventListener('DOMContentLoaded',()=>{
+  loadPlans(); renderPlanList(); checkOk(); applyLang();
+  const saved=loadLocalCache(); Object.assign(aiCache,saved);
+  const agreed=localStorage.getItem('as_agreed')==='1';
+  screenHistory=['s-splash'];
+  if(plans.length>0&&agreed){ setTimeout(()=>{ showScr('s-map',false); screenHistory=['s-map']; if(!mapInited)initMapWhenReady(); },600); }
+  else{ setTimeout(()=>{ showScr('s-profile',false); screenHistory=['s-profile']; },600); }
+});
+
+function initMap(){ mapInited=true; buildMap(35.7845,139.9023); }
+function initMapWhenReady() {
+  if (window.google && window.google.maps) {
+    mapInited = true;
+    buildMap(35.7845, 139.9023);
+  } else {
+    // まだ読み込み中 → コールバック待ち
+    window._mapReadyCB = () => {
+      buildMap(35.7845, 139.9023);
+    };
+  }
+}
+function goMap(){
+  if(!plans.length){alert('プランを1つ以上登録してください');return;}
+  localStorage.setItem('as_agreed','1');
+  if(!activePlanId)activePlanId=plans[0].id;
+  showScr('s-map');
+  if(!mapInited)initMapWhenReady();
+  else{ renderPlanChips(); updateMenuInfo(); updateAiBtn(); updateShopCount(); }
+}
+function goProfile(){ closeMenu(); showScr('s-profile'); renderPlanList(); checkOk(); applyLang(); }
+function showCache(){ closeMenu(); renderCacheList(); showScr('s-cache'); }
+async function showReviews(){ closeMenu(); await renderReviewList(); showScr('s-reviews'); }
+
+// メニュー
+function openMenu(){ updateMenuInfo(); updateAiBtn(); document.getElementById('s-menu').classList.add('open'); document.getElementById('menu-bg').classList.add('open'); }
+function closeMenu(){ document.getElementById('s-menu').classList.remove('open'); document.getElementById('menu-bg').classList.remove('open'); }
+
+// ジャンル
+function switchGenre(el,kw){
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on')); el.classList.add('on'); curKw=kw;
+  markers.forEach(({m})=>m.setMap(null)); markers.clear();
+  if(map)loadNearby();
+}
+
+// =============================================
+// マップ構築
+// =============================================
+function buildMap(lat,lng){
+  map=new google.maps.Map(document.getElementById('gmap'),{
+    center:{lat,lng},zoom:16,disableDefaultUI:true,
+    styles:[{featureType:'poi.business',elementType:'labels',stylers:[{visibility:'off'}]}]
+  });
+  infowindow=new google.maps.InfoWindow({maxWidth:310});
+  service=new google.maps.places.PlacesService(map);
+  renderPlanChips(); updateMenuInfo(); updateAiBtn();
+  const ac=new google.maps.places.Autocomplete(document.getElementById('pac-input'),{componentRestrictions:{country:'jp'},types:['establishment']});
+  ac.addListener('place_changed',()=>{
+    const p=ac.getPlace(); if(!p.geometry)return;
+    map.panTo(p.geometry.location); map.setZoom(17);
+    if(p.place_id&&!markers.has(p.place_id)){ const ch=matchChain(p.name); if(ch)aiCache[p.place_id]=ch; addMarker(p); setTimeout(()=>{ const o=markers.get(p.place_id); if(o)showInfo(p,o.m); },300); }
+  });
+  map.addListener('idle',loadNearby);
+  if(navigator.geolocation){ navigator.geolocation.getCurrentPosition(pos=>{ map.setCenter({lat:pos.coords.latitude,lng:pos.coords.longitude}); },()=>{}); }
+}
+
+function loadNearby(){
+  if(!service)return;
+  const req={location:map.getCenter(),radius:RADIUS,type:'restaurant'};
+  if(curKw)req.keyword=curKw;
+  service.nearbySearch(req,(results,status,pagination)=>{
+    if(status===google.maps.places.PlacesServiceStatus.OK&&results){
+      results.forEach(p=>{ if(!markers.has(p.place_id)){ const ch=matchChain(p.name); if(ch)aiCache[p.place_id]=ch; addMarker(p); } });
+      updateShopCount();
+      if(pagination?.hasNextPage)setTimeout(()=>pagination.nextPage(),500);
+    }
+  });
+}
+
+function addMarker(place){
+  if(markers.has(place.place_id))return;
+  const c=aiCache[place.place_id];
+  const m=new google.maps.Marker({map,position:place.geometry.location,title:place.name,icon:mkIcon(c?.color||'white')});
+  m.addListener('click',(function(pl,mk){return()=>showInfo(pl,mk);})(place,m));
+  markers.set(place.place_id,{m,p:place});
+}
+function updateShopCount(){
+  // mapがない、もしくはmapはあっても中心が取得できない場合は中断
+  if(!map || typeof map.getCenter !== 'function') return; 
+  
+  const c = map.getCenter(); 
+  let n = 0;  
+  markers.forEach(({p})=>{ if(google.maps.geometry.spherical.computeDistanceBetween(c,p.geometry.location)<=RADIUS)n++; });
+  sid('ai-cnt',`${n}店`);
+}
+function locateMe(){
+  if(!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(pos=>{ map.panTo({lat:pos.coords.latitude,lng:pos.coords.longitude}); map.setZoom(16); },()=>{});
+}
+
+// =============================================
+// AI一括調査（並列10・高速・キャッシュ対応）
+// =============================================
+async function runAI(){
+
+  if (!map) { pill('地図を読み込み中です...'); return; } 
+  // ★ここまで追加
+  
+  const rem=getRemaining();
+  const al=getActiveAllergies();
+  const alTxt=al.length?al.join('・'):'アレルギー全般';
+  const center=map.getCenter();
+  const btn=document.getElementById('ai-btn');
+
+  const nearby=[];
+  markers.forEach(({p})=>{ if(google.maps.geometry.spherical.computeDistanceBetween(center,p.geometry.location)<=RADIUS)nearby.push(p); });
+  if(!nearby.length){pill('周辺に店舗が見つかりません');setTimeout(()=>pill(''),3000);return;}
+
+  if(rem<=0){
+    // 残り0でも続行（DAILY_LIMIT=999なので実質ここには来ない）
+    pill('AI調査を実行します...');
+  }
+
+  btn.classList.add('spinning'); btn.disabled=true;
+
+  // ①サーバーDBキャッシュ
+  const uncachedIds=nearby.filter(p=>!aiCache[p.place_id]).map(p=>p.place_id);
+  if(uncachedIds.length>0){
+    const hits=await fetchServerCache(uncachedIds);
+    let hitCnt=0;
+    nearby.forEach(p=>{ if(hits[p.place_id]&&!aiCache[p.place_id]){ aiCache[p.place_id]={...hits[p.place_id],source:'cache',_ts:Date.now()}; const o=markers.get(p.place_id); if(o)o.m.setIcon(mkIcon(aiCache[p.place_id].color||'white')); hitCnt++; } });
+    if(hitCnt>0)pill(`💾 ${hitCnt}店キャッシュHIT`);
+  }
+
+  // ②未調査分をGeminiで並列調査（sleepなし・最速）
+  const targets=nearby.filter(p=>!aiCache[p.place_id]);
+  if(!targets.length){
+    const blue=[...markers.values()].filter(({p})=>aiCache[p.place_id]?.color==='blue').length;
+    pill(`✅ 全店調査済み — 青${blue}店が対応あり`);
+    btn.classList.remove('spinning'); btn.disabled=false; updateAiBtn();
+    setTimeout(()=>pill(''),5000); return;
+  }
+
+  useQuota();
+  const newItems=[];
+  let done=0;
+
+  for(let i=0;i<targets.length;i+=PARALLEL){
+    const chunk=targets.slice(i,i+PARALLEL);
+    await Promise.all(chunk.map(async place=>{
+      await queryOne(place,alTxt);
+      done++;
+      const c=aiCache[place.place_id];
+      if(c){ const o=markers.get(place.place_id); if(o)o.m.setIcon(mkIcon(c.color||'white')); if(c.source==='web')newItems.push({place_id:place.place_id,name:place.name,...c,allergens:alTxt}); }
+      // ボタンに進捗表示
+      sid('ai-btn-txt',`${done}/${targets.length}`);
+    }));
+  }
+
+  if(newItems.length>0){ saveServerCache(newItems); saveLocalCache(); }
+  const blue=[...markers.values()].filter(({p})=>aiCache[p.place_id]?.color==='blue').length;
+  btn.classList.remove('spinning'); btn.disabled=false; updateAiBtn();
+  pill(`✅ 完了 — ${blue}店が対応あり`);
+  setTimeout(()=>pill(''),5000);
+}
+
+// 1店分のGemini調査
+async function queryOne(place,alTxt,retries=2){
+  if(aiCache[place.place_id])return;
+  const prompt=`あなたは日本のアレルギー情報調査の専門家です。Google検索を使って「${place.name}」のアレルギー情報を今すぐ調査してください。
+確認するアレルゲン: ${alTxt}
+
+【必須調査手順】
+1. 「${place.name} アレルギー」「${place.name} アレルギー表」「${place.name} 成分表 pdf」で検索
+2. .pdfで終わるURLがあれば最優先で取得
+3. 公式HP・食べログ・ぐるなびも確認
+
+【判定】blue=アレルギー情報の記載を確認 / yellow=言及あり詳細不明 / white=情報なし
+
+以下のJSON形式のみで回答（JSONのみ、前置き不要）:
+{"color":"blue","comment":"調査結果を1〜2文で具体的に","links":[{"title":"ページ名","url":"https://実在URL"}]}
+
+URLは実際にアクセスできるもののみ。links最大3件、PDFを最優先。`;
+
+  for(let a=0;a<=retries;a++){
+    try{
+      const r=await fetch('/api/gemini',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt})});
+      if(r.status===429){await sleep((a+1)*6000);continue;}
+      if(!r.ok){aiCache[place.place_id]={color:'white',safe:false,comment:`エラー(${r.status})`,links:[],status:'done',source:'web',_ts:Date.now()};return;}
+      const data=await r.json();
+      const txt=(data?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');
+      let parsed=null;
+      for(const pat of[/```(?:json)?\s*(\{[\s\S]*?\})\s*```/,/(\{[\s\S]*?"color"[\s\S]*?\})/,/(\{[\s\S]*\})/]){
+        const m=txt.match(pat); if(m){try{parsed=JSON.parse(m[1]||m[0]);break;}catch(e){}}
+      }
+      // URLをサーバーで検証
+      if(parsed?.links?.length){
+        try{
+          const vr=await fetch('/api/check-links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({links:parsed.links})});
+          if(vr.ok){const vd=await vr.json();parsed.links=vd.links||parsed.links;}
+        }catch(e){}
+      }
+      aiCache[place.place_id]=parsed?.color
+        ?{...parsed,name:place.name,safe:parsed.color==='blue',status:'done',source:'web',_ts:Date.now()}
+        :{color:'white',safe:false,comment:'アレルギー情報が見つかりませんでした。来店前に直接ご確認ください。',links:[],status:'done',source:'web',_ts:Date.now()};
+      return;
+    }catch(e){
+      if(a===retries)aiCache[place.place_id]={color:'white',safe:false,comment:'通信エラー',links:[],status:'done',_ts:Date.now()};
+    }
+  }
+}
+
+// =============================================
+// 吹き出し（PDF・WEB→iframeプレビュー）
+// =============================================
+function showInfo(place,marker){
+  const pid=place.place_id,c=aiCache[pid];
+  const dist=google.maps.geometry.spherical.computeDistanceBetween(map.getCenter(),place.geometry.location);
+  const alStr=getActiveAllergies().join('・')||'—';
+  const planName=getActiveName();
+  const srcLbl=c?(c.source==='db'?t('db_src'):(c.source==='cache'||c.source==='shared_cache')?t('cache_src'):c.source==='web'?t('web_src'):'🔍'):'';
+  const revs=getLocalRevs(pid);
+  const revHtml=revs.length
+    ?revs.slice(0,3).map(r=>`<div class="ri"><div class="ri-au">${r.name||'匿名'}</div><div class="ri-tx">${r.text||r.body||''}</div>${r.allergies?`<div class="ri-al">除去：${r.allergies}</div>`:''}<div class="ri-dt">${r.date||''}</div></div>`).join('')
+    :`<div style="font-size:11px;color:var(--muted);font-weight:300;">${t('no_reviews')}</div>`;
+
+  let body='';
+  if(!c){
+    body=`<div style="font-size:12px;color:var(--muted);margin-bottom:7px;">${t('not_surveyed')}</div>
+    <a href="https://www.google.com/search?q=${encodeURIComponent(place.name+' アレルギー情報')}" target="_blank" class="iw-goog">${t('goog_search')}</a>`;
+  }else if(c.source==='google'){
+    body=`<div style="font-size:12px;color:var(--muted);margin-bottom:7px;">${c.comment||''}</div>
+    <a href="${c.googleUrl}" target="_blank" class="iw-lnk"><span style="flex:1;">🔍 ${place.name} アレルギー情報</span></a>`;
+  }else{
+    const linksHtml=(c.links&&c.links.length)?c.links.map(l=>{
+      const isPdf=/\.pdf($|\?)/i.test(l.url);
+      const proxy=isPdf?`/api/pdf-proxy?url=${encodeURIComponent(l.url)}`:`/api/web-proxy?url=${encodeURIComponent(l.url)}`;
+      const st=l.title.replace(/'/g,"\\'"),su=l.url.replace(/'/g,"\\'"),sp=proxy.replace(/'/g,"\\'");
+      return `<a class="iw-lnk" onclick="openPreview('${sp}','${st}','${su}');return false;" href="${l.url}" target="_blank">
+        <span style="flex:1;">${l.title}</span><span class="lb ${isPdf?'lb-pdf':'lb-web'}">${isPdf?'PDF':'WEB'}</span>
+      </a>`;
+    }).join(''):'';
+    const fallback=!linksHtml?`<a href="https://www.google.com/search?q=${encodeURIComponent(place.name+' アレルギー情報')}" target="_blank" class="iw-goog">${t('goog_search')}</a>`:'';
+    const commentHtml=c.comment?`<div class="ai-box"><div class="ai-box-lbl">${t('ai_comment')}</div><div class="ai-box-txt">${c.comment}</div></div>`:'';
+    body=`${commentHtml}${linksHtml}${fallback}`;
+  }
+
+  const badge=c?.safe?`<span class="iw-badge b-safe">${t('safe_badge')}</span>`:(c?.color!=='white'&&c?`<span class="iw-badge b-caution">${t('caution_badge')}</span>`:'');
+  const safePid=pid.replace(/['"]/g,'');
+  const safeName=place.name.replace(/'/g,"\\'");
+
+  infowindow.setContent(`<div class="iw">
+    <div class="iw-name">${place.name}</div>
+    <div class="iw-meta">約${Math.round(dist)}m${srcLbl?' · '+srcLbl:''}</div>
+    ${badge}
+    <div class="iw-allergy"><b>${planName}：</b>${alStr}</div>
+    ${body}
+    <button class="iw-rev-btn" onclick="openPost('${safePid}','${safeName}')">${t('post_review')}</button>
+    <div class="iw-revs"><div class="iw-revs-ttl">${t('reviews_ttl')}</div>${revHtml}</div>
+  </div>`);
+  infowindow.open(map,marker);
+}
+
+// =============================================
+// PDFプレビュー
+// =============================================
+function openPreview(proxy,title,orig){
+  const m=document.getElementById('s-pdf');
+  document.getElementById('pdf-ttl').textContent=title;
+  document.getElementById('pdf-ext').href=orig||proxy;
+  document.getElementById('pdf-fr').src=proxy;
+  m.style.display='flex';
+}
+function closePdf(){ document.getElementById('s-pdf').style.display='none'; document.getElementById('pdf-fr').src=''; }
+
+// =============================================
+// キャッシュ一覧
+// =============================================
+function renderCacheList(){
+  const grid=document.getElementById('cache-grid'); if(!grid)return;
+  const items=Object.entries(aiCache).filter(([,v])=>v.source!=='db'&&v.color).map(([pid,v])=>({pid,...v}));
+  sid('cache-count-txt',`調査済み ${items.length}店`);
+  if(!items.length){ grid.innerHTML=`<div class="cache-empty">まだキャッシュされた店舗がありません。<br>AI調査を実行すると表示されます。</div>`; return; }
+  grid.innerHTML=items.map(v=>{
+    const bc=v.color==='blue'?'background:#F0F9F0;color:#2E7D32;':v.color==='yellow'?'background:#FFF8EC;color:#7a6000;':'background:#f5f5f5;color:#aaa;';
+    const badge=v.color==='blue'?t('safe_badge'):v.color==='yellow'?t('caution_badge'):'情報なし';
+    const lnks=(v.links&&v.links.length)?v.links.map(l=>`<a href="${l.url}" target="_blank" class="cc-lnk">${l.title} ↗</a>`).join(' '):'';
+    const days=v._ts?Math.floor((Date.now()-v._ts)/86400000):0;
+    return `<div class="cache-card">
+      <div class="cc-badge" style="${bc}">${badge}</div>
+      <div class="cc-name">${v.name||v.pid}</div>
+      <div class="cc-meta">調査: ${days}日前 · ${v.source==='cache'?'共有キャッシュ':'Web調査'}</div>
+      ${v.comment?`<div class="cc-comment">${v.comment}</div>`:''}
+      ${lnks}
+    </div>`;
+  }).join('');
+}
+
+// =============================================
+// 投稿一覧
+// =============================================
+async function renderReviewList(){
+  const grid=document.getElementById('rev-grid'); if(!grid)return;
+  grid.innerHTML='<div class="rev-empty">読み込み中...</div>';
+  const revs=await getAllReviews();
+  if(!revs.length){ grid.innerHTML=`<div class="rev-empty">${t('no_reviews')}</div>`; return; }
+  grid.innerHTML=revs.map(r=>`<div class="rev-card">
+    ${r.place_name||r.shop?`<div class="rvc-shop">📍 ${r.place_name||r.shop}</div>`:''}
+    <div class="rvc-name">${r.name||r.reviewer||'匿名'}</div>
+    ${r.allergies?`<div class="rvc-allergy">除去：${r.allergies}</div>`:''}
+    <div class="rvc-body">${r.text||r.body||''}</div>
+    <div class="rvc-date">${r.date||new Date(r.created_at||Date.now()).toLocaleDateString('ja-JP')}</div>
+  </div>`).join('');
+}
+
+// =============================================
+// 投稿フォーム
+// =============================================
+function openPost(pid,name){
+  postTargetPlace={pid,name};
+  document.getElementById('post-shop-name').textContent=name;
+  document.getElementById('ps-name').value='';
+  document.getElementById('ps-body').value='';
+  document.getElementById('s-post').classList.add('open');
+}
+function closePost(){ document.getElementById('s-post').classList.remove('open'); postTargetPlace=null; }
+async function submitPost(){
+  if(!postTargetPlace)return;
+  const body=document.getElementById('ps-body').value.trim();
+  if(!body){alert('体験談を入力してください');return;}
+  const name=document.getElementById('ps-name').value.trim()||'匿名';
+  const rev={name,text:body,allergies:getActiveAllergies().join('・'),date:new Date().toLocaleDateString('ja-JP'),shop:postTargetPlace.name};
+  saveLocalRev(postTargetPlace.pid,rev);
+  await postReviewServer(postTargetPlace.pid,postTargetPlace.name,name,body);
+  closePost();
+  // 吹き出し更新
+  const o=markers.get(postTargetPlace.pid); if(o)showInfo(o.p,o.m);
+  // 😊
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:64px;z-index:9999;pointer-events:none;animation:au .9s ease forwards;';
+  el.textContent='😊'; document.body.appendChild(el);
+  setTimeout(()=>el.remove(),900);
+}
+
+// =============================================
+// ユーティリティ
+// =============================================
+function mkIcon(type){
+  return{path:google.maps.SymbolPath.CIRCLE,fillColor:{blue:'#1A6EF5',yellow:'#C9A84C',white:'#FAF7F2'}[type]||'#FAF7F2',fillOpacity:1,scale:type==='blue'?11:8,strokeWeight:2,strokeColor:type==='white'?'#bbb':'white'};
+}
+function pill(msg){
+  const b=document.getElementById('status-pill'); if(!b)return;
+  if(!msg){b.style.display='none';return;}
+  b.style.display='block'; b.textContent=msg;
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// Google Maps コールバック
+window.initMap = function() {
+  mapInited = true;
+  if (window._mapReadyCB) {
+    window._mapReadyCB();
+    window._mapReadyCB = null;
+  } else {
+    // _mapReadyCBがない＝既にs-mapが表示されているか、直接コールバックされた場合
+    buildMap(35.7845, 139.9023);
+  }
+};
+</script>
+</body>
+</html>

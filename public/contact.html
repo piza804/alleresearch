@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="アレルサーチへのお問い合わせ。ご質問・ご意見・不具合報告などはこちらからお送りください。">
+<title>お問い合わせ | アレルサーチ</title>
+<link rel="stylesheet" href="/css/common.css">
+<style>
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  margin-bottom: 64px;
+}
+
+.contact-info-card {
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+.contact-info-card:hover { border-color: var(--gold); }
+
+.cic-icon { font-size: 24px; margin-bottom: 14px; }
+.cic-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; margin-bottom: 8px; }
+.cic-desc { font-size: 13px; color: var(--muted); line-height: 1.8; font-weight: 300; }
+
+.form-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 40px;
+}
+
+.form-row { margin-bottom: 24px; }
+
+.form-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  font-size: 14px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 300;
+  background: var(--cream);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s;
+  appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--gold);
+  background: white;
+}
+
+.form-textarea { height: 130px; resize: vertical; }
+
+.form-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 16px;
+  font-weight: 300;
+  text-align: center;
+}
+
+.success-card {
+  display: none;
+  text-align: center;
+  padding: 48px 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+}
+.success-icon {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 56px;
+  font-weight: 300;
+  color: var(--gold);
+  margin-bottom: 16px;
+  line-height: 1;
+}
+.success-title { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 400; margin-bottom: 12px; }
+.success-desc { font-size: 13px; color: var(--muted); line-height: 1.8; font-weight: 300; }
+
+@media (max-width: 768px) {
+  .contact-grid { grid-template-columns: 1fr; gap: 16px; }
+  .form-card { padding: 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="as-page-header">
+  <div class="as-page-header-inner">
+    <div class="as-page-eyebrow">Support — Contact</div>
+    <h1 class="as-page-title">お問い<em>合わせ</em></h1>
+    <p class="as-page-desc">ご質問・ご意見・不具合報告など、お気軽にお送りください。通常3営業日以内にご返信します。</p>
+  </div>
+</div>
+
+<div class="as-content">
+
+  <div class="contact-grid">
+    <div class="contact-info-card">
+      <div class="cic-icon">💬</div>
+      <div class="cic-title">ご質問・使い方</div>
+      <p class="cic-desc">サービスの使い方や機能についてのご質問はお気軽にどうぞ。</p>
+    </div>
+    <div class="contact-info-card">
+      <div class="cic-icon">🐛</div>
+      <div class="cic-title">不具合の報告</div>
+      <p class="cic-desc">マップが表示されない、AI検索がうまくいかないなどの不具合はこちらへ。</p>
+    </div>
+    <div class="contact-info-card">
+      <div class="cic-icon">💡</div>
+      <div class="cic-title">ご意見・ご要望</div>
+      <p class="cic-desc">新機能のご提案や改善のご要望もお待ちしています。</p>
+    </div>
+    <div class="contact-info-card">
+      <div class="cic-icon">🤝</div>
+      <div class="cic-title">掲載・提携について</div>
+      <p class="cic-desc">店舗様・企業様からのご提携のお問い合わせもこちらから。</p>
+    </div>
+  </div>
+
+  <div class="form-card" id="form-card">
+    <form onsubmit="submitForm(event)">
+      <div class="form-row">
+        <label class="form-label">お名前 <span style="color:var(--gold);">*</span></label>
+        <input type="text" class="form-input" required placeholder="山田 花子">
+      </div>
+      <div class="form-row">
+        <label class="form-label">メールアドレス <span style="color:var(--gold);">*</span></label>
+        <input type="email" class="form-input" required placeholder="hello@example.com">
+      </div>
+      <div class="form-row">
+        <label class="form-label">お問い合わせ種別</label>
+        <select class="form-select">
+          <option>サービスへのご質問</option>
+          <option>不具合・エラーの報告</option>
+          <option>ご意見・ご要望</option>
+          <option>掲載・提携について</option>
+          <option>その他</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label class="form-label">お問い合わせ内容 <span style="color:var(--gold);">*</span></label>
+        <textarea class="form-textarea" required placeholder="お問い合わせ内容をご記入ください。&#10;&#10;例）「AIで調査する」ボタンを押しても反応がありません。使用ブラウザはChromeです。"></textarea>
+      </div>
+      <button type="submit" class="as-btn" style="width:100%;justify-content:center;">
+        送信する &nbsp;→
+      </button>
+      <p class="form-note">通常3営業日以内にご返信いたします</p>
+    </form>
+  </div>
+
+  <div class="success-card" id="success-card">
+    <div class="success-icon">✓</div>
+    <div class="success-title">お問い合わせを受け付けました</div>
+    <p class="success-desc">ご返信までしばらくお待ちください。<br>通常3営業日以内にご連絡いたします。</p>
+  </div>
+
+</div>
+
+<script>
+function submitForm(e) {
+  e.preventDefault();
+  document.getElementById('form-card').style.display = 'none';
+  document.getElementById('success-card').style.display = 'block';
+  // 実際の運用ではFormspree等と連携してください
+  // fetch('https://formspree.io/f/YOUR_ID', { method:'POST', body: new FormData(e.target) })
+}
+</script>
+
+<script src="/css/common.js"></script>
+<script>
+  insertNav('contact');
+  insertFooter();
+</script>
+</body>
+</html>
